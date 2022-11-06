@@ -17,6 +17,10 @@ from webdriver_manager.firefox import GeckoDriverManager
 #===== IMPORTS =======================================
 import json
 
+#===== MODULES =======================================
+from src.arg_parser import parse_args
+from src.terminal_info import info, error
+
 #===== FUNCTIONS =====================================
 def get_list_of_markets(plz=86159):
 
@@ -31,13 +35,13 @@ def get_list_of_markets(plz=86159):
 
     # Parse the JSON
     content = driver.page_source
-
     market_list = content.split('<div id="json">')
     market_list = json.loads(market_list[1].split("</div>")[0])
-    print(json.dumps(market_list, indent=4))
 
     # Close the Browser
     driver.quit()
+
+    return market_list
 
 
 def get_current_offers(market_id=441050):
@@ -72,5 +76,35 @@ def get_current_offers(market_id=441050):
 #===== MAIN ==========================================
 if __name__ == "__main__":
 
-    market_list = get_list_of_markets(plz=86159)
-    current_offers = get_current_offers(market_id=441050)
+    # Get args
+    args = parse_args()
+
+    # Get market list near given PLZ
+    if args.list_markets:
+
+        # Get postal code
+        plz = args.list_markets
+
+        info(f"Listing all market for PLZ: {plz}")
+        market_list = get_list_of_markets(plz=plz)
+
+        # List of three nearest markets
+        market_list = market_list["stationaryMarkets"][0:3]
+        
+        # Routine for manual mode
+        if args.DEBUG:
+
+            for index, market in enumerate(market_list):
+                print(f'[{index+1}]\t{market["id"]}\t{market["name"]}\t{market["address"]["city"]}')
+
+            # For manual mode: asks if user wants to select the market
+            selected_market = int(input("Which market do you want to look into? [1,3]\t"))-1
+
+            current_offers = get_current_offers(market_id=market_list[selected_market]["id"])
+
+    
+    # Get the current offers from the selected market
+    else:
+        current_offers = get_current_offers(market_id=args.market_id)
+
+        # Parse the current offers to a custom JSON and store with according store information
